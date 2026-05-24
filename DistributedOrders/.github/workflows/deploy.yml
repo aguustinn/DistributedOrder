@@ -25,43 +25,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Transformar nome do servico em minusculo
+        id: string
+        run: echo "lowercase_service=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Build e push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
           context: .
           file: src/${{ matrix.service }}/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.lowercase_service }}:${{ github.sha }}
 
   # ─── Deploy na Azure (Container Apps) ────────────────────────────────────
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [OrderService, InventoryService, NotificationService]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Transformar nome do servico em minusculo
+        id: string
+        run: |
+          echo "lowercase_service=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "container_app_name=$(echo ${{ matrix.service }} | tr '[:upper:]' '[:lower:]' | sed 's/service/-service/')" >> $GITHUB_ENV
 
       - name: Login na Azure
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy OrderService
+      - name: Deploy ${{ matrix.service }}
         uses: azure/container-apps-deploy-action@v1
         with:
           resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
-          containerAppName: order-service
-          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/OrderService:${{ github.sha }}
-
-      - name: Deploy InventoryService
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
-          containerAppName: inventory-service
-          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/InventoryService:${{ github.sha }}
-
-      - name: Deploy NotificationService
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
-          containerAppName: notification-service
-          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/NotificationService:${{ github.sha }}
+          containerAppName: ${{ env.container_app_name }}
+          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.lowercase_service }}:${{ github.sha }}
