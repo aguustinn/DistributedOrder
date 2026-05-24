@@ -4,6 +4,8 @@ using OrderService.Consumers;
 using OrderService.Data;
 using OrderService.Services;
 using StackExchange.Redis;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,13 +37,21 @@ builder.Services.AddApplicationInsightsTelemetry();
 
 var app = builder.Build();
 
-// Aplica migrations automaticamente ao iniciar (conveniente para labs/academico)
+
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
-
+    var db = scope.ServiceProvider.GetRequiredService<OrderDbContext>(); 
     
-    await db.Database.EnsureCreatedAsync();
+    try
+    {
+        
+        var databaseCreator = db.Database.GetService<IRelationalDatabaseCreator>();
+        databaseCreator.CreateTables();
+    }
+    catch
+    {
+        
+    }
 }
 
 app.UseSwagger();
