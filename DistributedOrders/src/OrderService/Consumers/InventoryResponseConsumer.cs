@@ -62,9 +62,9 @@ public class InventoryResponseConsumer(
         return Task.CompletedTask;
     }
 
-    public override async ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_processor is not null) await _processor.DisposeAsync();
-        await base.DisposeAsync();
+        base.Dispose();
     }
 }

@@ -5,6 +5,7 @@ using OrderService.Data;
 using OrderService.Models;
 using SharedMessages.Events;
 using StackExchange.Redis;
+using Order = OrderService.Models.Order;
 
 namespace OrderService.Services;
 
