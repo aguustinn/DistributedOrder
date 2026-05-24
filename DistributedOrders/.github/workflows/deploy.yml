@@ -1,0 +1,67 @@
+name: Build & Deploy — Distributed Orders
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  AZURE_RESOURCE_GROUP: rg-distributed-orders
+
+jobs:
+  # ─── Build e push das imagens Docker ──────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [OrderService, InventoryService, NotificationService]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+
+  # ─── Deploy na Azure (Container Apps) ────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login na Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy OrderService
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          containerAppName: order-service
+          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/OrderService:${{ github.sha }}
+
+      - name: Deploy InventoryService
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          containerAppName: inventory-service
+          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/InventoryService:${{ github.sha }}
+
+      - name: Deploy NotificationService
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.AZURE_RESOURCE_GROUP }}
+          containerAppName: notification-service
+          imageToDeploy: ${{ env.REGISTRY }}/${{ github.repository_owner }}/NotificationService:${{ github.sha }}
