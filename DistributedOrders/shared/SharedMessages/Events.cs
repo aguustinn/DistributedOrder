@@ -1,4 +1,8 @@
-namespace SharedMessages.Events;
+using System;
+using System.Collections.Generic;
+namespace SharedMessages.Events
+{
+
 
 // Publicado pelo OrderService quando um pedido é criado
 public record OrderCreatedEvent(
@@ -32,3 +36,6 @@ public record OrderItemDto(
     int Quantity,
     decimal UnitPrice
 );
+}
+
+
